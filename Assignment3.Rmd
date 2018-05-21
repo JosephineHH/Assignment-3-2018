@@ -93,7 +93,115 @@ title("Verbal IQ")
   
 
 ```
+Nonverbal IQ
+```{r}
+#----------NonVERBALIQ----------#
 
+#Check the distribution
+plot(density(dataSub$NonVerbalIQ))
+
+#Symptom severity = ADOS = our model outcome
+#IQ = verbal, nonverbal and social IQ -> We predict all to be correlated with the data
+#So we have:
+  # ADOS_i ~ Normal(mu_i, sigma)
+  # mu = a + b*nonverbalIQ
+#Our priors
+  #alpha ~ dnorm(15,10) - this is the mean of ados when x = 0 (verbalIQ)
+  #Beta ~ normal(0,10) -> Stregnth of the relation between ADOS and verbal IQ -> No clue why we would choose these values #zero because we do not know what we expect
+  #sigma ~ uniform(0, 30) #30 er circa max
+
+mNVIQ <- map(
+  alist(
+    ADOS ~ dnorm(mu, sigma),
+    mu <- a + b*NonVerbalIQ,
+    a ~ dnorm(15, 10),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0,30)
+  ), data = dataSub
+)
+precis(mNVIQ)
+
+plot(ADOS ~ NonVerbalIQ, data = dataSub, col = rangi2)
+abline(a = coef(mNVIQ)["a"], b= coef(mNVIQ)["b"])
+
+#A plot with uncertainty
+postNV <- extract.samples(mNVIQ, n = 20)
+
+#Display raw data and sample size
+plot(dataSub$NonVerbalIQ, dataSub$ADOS,
+     xlim = range(dataSub$NonVerbalIQ), ylim = range(dataSub$ADOS),
+     col = rangi2, xlab = "Nonverbal IQ", ylab = "ADOS")
+#plot the lines
+for (i in 1:20)
+  abline(a = postNV$a[i], b = postNV$b[i], col = col.alpha("black", 0.3))
+
+
+
+#Plot our data against the distribution
+#First simulate
+sim.ADOS.nvIQ <- sim(mNVIQ, data = dataSub, n = 1e4)
+
+#dens plot on raw data
+dens(sim.ADOS.nvIQ, col = "red", xlim = c(0, 30), ylim = c(0,0.12),  xlab = "ADOS")
+par(new=TRUE)
+dens(dataSub$ADOS, xlim = c(0, 30), ylim = c(0,0.12), xlab = "ADOS")
+title("Nonverbal IQ")
+```
+
+Social IQ
+```{r}
+#----------Social IQ----------#
+
+#Check the distribution
+plot(density(dataSub$SocialIQ))
+
+#Symptom severity = ADOS = our model outcome
+#IQ = verbal, nonverbal and social IQ -> We predict all to be correlated with the data
+#So we have:
+  # ADOS_i ~ Normal(mu_i, sigma)
+  # mu = a + b*social IQ
+#Our priors
+  #alpha ~ dnorm(15,10) - this is the mean of ados when x = 0 (verbalIQ)
+  #Beta ~ normal(0,10) -> Stregnth of the relation between ADOS and verbal IQ -> No clue why we would choose these values #zero because we do not know what we expect
+  #sigma ~ uniform(0, 30) #30 er circa max
+
+mSIQ <- map(
+  alist(
+    ADOS ~ dnorm(mu, sigma),
+    mu <- a + b*SocialIQ,
+    a ~ dnorm(15, 10),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0,30)
+  ), data = dataSub
+)
+precis(mSIQ)
+
+plot(ADOS ~ SocialIQ, data = dataSub, col = rangi2)
+abline(a = coef(mSIQ)["a"], b= coef(mSIQ)["b"])
+
+#A plot with uncertainty
+postS <- extract.samples(mSIQ, n = 20)
+
+#Display raw data and sample size
+plot(dataSub$SocialIQ, dataSub$ADOS,
+     xlim = range(dataSub$SocialIQ), ylim = range(dataSub$ADOS),
+     col = rangi2, xlab = "Social IQ", ylab = "ADOS")
+#plot the lines
+for (i in 1:20)
+  abline(a = postS$a[i], b = postS$b[i], col = col.alpha("black", 0.3))
+
+
+
+#Plot our data against the distribution
+#First simulate
+sim.ADOS.SIQ <- sim(mSIQ, data = dataSub, n = 1e4)
+
+#dens plot on raw data
+dens(sim.ADOS.SIQ, col = "red", xlim = c(0, 30), ylim = c(0,0.12),  xlab = "ADOS")
+par(new=TRUE)
+dens(dataSub$ADOS, xlim = c(0, 30), ylim = c(0,0.12), xlab = "ADOS")
+title("Social IQ")
+```
 
 2. Do the different aspects of IQ account for different portions of the variance in ADOS? 
 2.1. Does it make sense to have all IQ measures in the same model? First write a few lines answering the question and motivating your answer, including a discussion as to what happens when you put all of them in the same model. Then build a model following your answer. If your answer is "no", you are not free, you still have to answer: are there alternative ways of answering the question?
@@ -144,7 +252,7 @@ pairs( ~ ADOS.s + VerbalIQ.s + NonVerbalIQ.s + SocialIQ.s, data = dataSub, col =
 #v ~ nv -> Find the beta, beta = .67
 #v ~s -> beta = .6
 # Nv ~ s  beta = .37
-
+#Calculating the correlations
 #Three aspects. strong connection between verbal and nonverbal, weaker connection between social and nonverbal iQ
 
 
@@ -187,8 +295,154 @@ plot(precis(m2.2))
 
 3. Let's now include also the TD children. Does it make sense to ask whether IQ and ADOS are related? Motivate your answer. In any case, if you wanted to build a model to answer that question, which model would you build? Run the model, assess its quality, write a few lines interpreting the results.
 
+```{r}
+#Start with making a new subset with TD and ASD at first visit.
+#we need to make a model-stuffing-thingy
+#I will make a data subset only for visit 1
+dataSub2 = data[data$Visit == 1,]
+
+#We remove participant 1, with NAs
+dataSub2 = dataSub2[dataSub2$ChildID != 1,]
+
+dataSubPlot = dataSub2
+
+dataSubPlot$ASD[dataSubPlot$ASD == 1] = "ASD"
+dataSubPlot$ASD[dataSubPlot$ASD == 0] = "TD"
+
+ggplot(data = dataSubPlot, aes(dataSubPlot$ASD, dataSubPlot$ADOS))+
+  geom_jitter(aes(colour = dataSubPlot$ASD))
+
+mean(dataSub2$ADOS[dataSub2$ASD == 1])
+sd(dataSub2$ADOS[dataSub2$ASD == 1])
+mean(dataSub2$ADOS[dataSub2$ASD == 0])
+sd(dataSub2$ADOS[dataSub2$ASD == 0])
+
+
+#To answer the question I will build a model predicting ADOS from verbalIQ, socialIQ and nonverbal IQ
+
+
+#So now we standardize
+dataSub2$VerbalIQ.s <- scale(dataSub2$VerbalIQ)[,]
+dataSub2$NonVerbalIQ.s <- scale(dataSub2$NonVerbalIQ)[,]
+dataSub2$SocialIQ.s <- scale(dataSub2$SocialIQ)[,]
+dataSub2$ADOS.s <- scale(dataSub2$ADOS)[,]
+
+
+#Do the MAP-thingy
+m3.1 <- map(
+  alist(
+    ADOS.s ~ dnorm(mu, sigma),
+    mu <- a + bV*VerbalIQ.s + bN*NonVerbalIQ.s+bS*SocialIQ.s,
+    a ~ dnorm(0, 2),
+    bV ~ dnorm(0,1),
+    bN ~ dnorm(0, 1),
+    bS ~ dnorm(0,1),
+    sigma ~ dunif(0,10)), data = dataSub2
+)
+
+precis(m3.1, corr = T)
+plot(precis(m3.1))
+
+#by centering we get away from the correlations
+#Center everything
+#Standardizing puts everything on the same scale.
+#we can choose to do both
+#non-verbal IQ overlaps with zero - not necessarily any added information from adding this (As it overlaps with zero)
+
+#Now plots..
+#Plot our data against the distribution
+#First simulate
+sim.ADOS.asdIQ <- sim(m3.1, data = dataSub2, n = 1e4)
+
+#dens plot on raw data
+dens(sim.ADOS.asdIQ, col = "red", xlim = c(-3, 3), ylim = c(0,0.9),  xlab = "ADOS")
+par(new=TRUE)
+dens(dataSub2$ADOS.s, xlim = c(-3, 3), ylim = c(0,0.9), xlab = "ADOS")
+title("Model including both typically developing and ASD children")
+
+
+
+m3.2 <- map(
+  alist(
+    ADOS.s ~ dnorm(mu, sigma),
+    mu <- a + bV*VerbalIQ.s + bN*NonVerbalIQ.s+bS*SocialIQ.s+bA*ASD,
+    a ~ dnorm(0, 2),
+    bV ~ dnorm(0,1),
+    bN ~ dnorm(0, 1),
+    bS ~ dnorm(0,1),
+    bA ~ dnorm(0,1),
+    sigma ~ dunif(0,10)), data = dataSub2
+)
+
+precis(m3.1, corr = T)
+plot(precis(m3.1))
+
+sim.ADOS.asd2IQ <- sim(m3.2, data = dataSub2, n = 1e4)
+
+#dens plot on raw data
+dens(sim.ADOS.asd2IQ, col = "red", xlim = c(-3, 3), ylim = c(0,0.9),  xlab = "ADOS")
+par(new=TRUE)
+dens(dataSub2$ADOS.s, xlim = c(-3, 3), ylim = c(0,0.9), xlab = "ADOS")
+title("M3.2 including both typically developing and ASD children")
+
+
+compare(m3.1, m3.2)
+
+```
+
+
 4. Let's discuss contents:
 4.1. You have three scores for IQ, do they show shared variance? Is that the same in TD and ASD? What does that tell us about IQ?
+
+```{r}
+#Make subset with only TD children
+#we need to make a model-stuffing-thingy
+#I will make a data subset only for visit 1
+dataTD = data[data$Visit == 1,]
+
+#We remove participant 1, with NAs
+dataTD = dataTD[dataTD$ChildID != 1,]
+
+#Now only children with ASD
+dataTD = dataTD[dataTD$ASD == 0,]
+
+
+
+#So now we standardize
+dataTD$VerbalIQ.s <- scale(dataTD$VerbalIQ)[,]
+dataTD$NonVerbalIQ.s <- scale(dataTD$NonVerbalIQ)[,]
+dataTD$SocialIQ.s <- scale(dataTD$SocialIQ)[,]
+dataTD$ADOS.s <- scale(dataTD$ADOS)[,]
+
+
+
+#by centering we get away from the correlations
+#Center everything
+#Standardizing puts everything on the same scale.
+#we can choose to do both
+#non-verbal IQ overlaps with zero - not necessarily any added information from adding this (As it overlaps with zero)
+
+pairs( ~ ADOS.s + VerbalIQ.s + NonVerbalIQ.s + SocialIQ.s, data = dataTD, col = rangi2)
+
+
+m4.1 <- map(
+  alist(
+    ADOS.s ~ dnorm(mu, sigma),
+    mu <- a + bV*VerbalIQ.s + bN*NonVerbalIQ.s+bS*SocialIQ.s,
+    a ~ dnorm(0, 2),
+    bV ~ dnorm(0,1),
+    bN ~ dnorm(0, 1),
+    bS ~ dnorm(0,1),
+    sigma ~ dunif(0,10)), data = dataTD
+)
+
+precis(m4.1, corr = T)
+plot(precis(m4.1))
+
+
+
+```
+
 4.2. You have explored the relation between IQ and ADOS. How do you explain that relation from a cognitive perspective? N.B. You can present alternative hypotheses.
 
 5. Bonus questions: Including measurement errors. 
